@@ -1,0 +1,49 @@
+{
+  "name": "neon-prompt-engine-builder",
+  "version": "1.0.0",
+  "description": "A production-ready CLI tool for generating digital product bundles with AI-powered content, branded PDFs, and automated packaging",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "neon": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/ test/",
+    "lint:fix": "eslint src/ test/ --fix",
+    "format": "prettier --write 'src/**/*.js' 'test/**/*.js'",
+    "format:check": "prettier --check 'src/**/*.js' 'test/**/*.js'"
+  },
+  "keywords": [
+    "cli",
+    "digital-products",
+    "pdf-generator",
+    "openai",
+    "content-generation",
+    "puppeteer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "cli-progress": "^3.12.0",
+    "fs-extra": "^11.2.0",
+    "inquirer": "^9.2.12",
+    "jszip": "^3.10.1",
+    "openai": "^4.24.0",
+    "puppeteer": "^22.0.0"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^1.1.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-node": "^11.1.0",
+    "prettier": "^3.2.0",
+    "vitest": "^1.1.0"
+  }
+}
