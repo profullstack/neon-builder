@@ -1,5 +1,5 @@
 {
-  "name": "neon-prompt-engine-builder",
+  "name": "@profullstack/neon-builder",
   "version": "1.0.0",
   "description": "A production-ready CLI tool for generating digital product bundles with AI-powered content, branded PDFs, and automated packaging",
   "type": "module",
