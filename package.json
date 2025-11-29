@@ -1,6 +1,6 @@
 {
   "name": "@profullstack/neon-builder",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A production-ready CLI tool for generating digital product bundles with AI-powered content, branded PDFs, and automated packaging",
   "type": "module",
   "main": "src/index.js",
