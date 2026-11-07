@@ -6,7 +6,7 @@ A production-ready Node.js CLI tool for generating digital product bundles with 
 
 - 🚀 **Interactive CLI** - Inquirer-based prompts with sensible defaults
 - 📊 **Progress Tracking** - Real-time progress bars for all operations
-- 🤖 **AI Content Generation** - OpenAI-powered content creation with retry logic
+- 🤖 **AI Content Generation** - content on the c0mpute peer network, with OpenAI (and its retry logic) as the fallback
 - 📄 **Branded PDFs** - Puppeteer-based PDF generation with custom branding
 - 📦 **Automated Packaging** - ZIP archives for each section and master bundle
 - ⚙️ **Highly Configurable** - Override chunks, models, colors, and more
@@ -14,7 +14,8 @@ A production-ready Node.js CLI tool for generating digital product bundles with 
 ## Requirements
 
 - Node.js 20 or newer
-- OpenAI API key
+- Optional: an Infernet account key (`C0MPUTE_API_KEY`, `ik_live_...`). Without one c0mpute still answers, on a free tier of 10 calls a day.
+- Optional: an OpenAI API key, used only when c0mpute fails
 - pnpm (recommended) or npm
 
 ## Installation
@@ -37,7 +38,7 @@ Run the CLI and follow the prompts:
 pnpm start
 ```
 
-On first run, you'll be prompted to enter your OpenAI API key. The key is securely stored in `~/.config/neon-builder/credentials.json` for future use.
+Generation runs on c0mpute first and needs no key. With `C0MPUTE_DISABLED=1`, the first run prompts for your OpenAI API key. The key is securely stored in `~/.config/neon-builder/credentials.json` for future use.
 
 Or use the binary directly:
 
@@ -77,7 +78,10 @@ The CLI will:
 
 | Variable | Description |
 |----------|-------------|
-| `OPENAI_API_KEY` | OpenAI API key (overrides stored credentials) |
+| `C0MPUTE_API_KEY` | Infernet account key for c0mpute (tried first) |
+| `C0MPUTE_TIMEOUT_MS` | Whole c0mpute call per chunk, default 1800000 (c0mpute runs at a few tokens a second) |
+| `C0MPUTE_DISABLED` | `1` skips c0mpute and uses OpenAI only |
+| `OPENAI_API_KEY` | OpenAI API key, the fallback (overrides stored credentials) |
 | `NEON_MODEL` | Override default model |
 | `NEON_OUTPUT_DIR` | Override output directory |
 | `NEON_VERBOSE` | Enable verbose logging (`true`/`false`) |
@@ -127,7 +131,7 @@ neon-builder/
 │   │   ├── defaults.js    # Default configuration
 │   │   └── index.js
 │   ├── generators/
-│   │   ├── content-generator.js  # OpenAI integration
+│   │   ├── content-generator.js  # c0mpute first, OpenAI fallback
 │   │   ├── pdf-generator.js      # Puppeteer PDF creation
 │   │   ├── zip-packager.js       # ZIP archive creation
 │   │   └── index.js
