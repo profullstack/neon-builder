@@ -15,6 +15,7 @@ import {
   createMasterZip,
   checkPuppeteerInstallation,
 } from './generators/index.js';
+import { isC0mputeDisabled } from './generators/c0mpute.js';
 import {
   createProgressBar,
   logger,
@@ -25,6 +26,7 @@ import {
   writeFile,
   getDirectorySize,
   ensureOpenAIKey,
+  getOpenAIKey,
   getConfigDir,
   createCostTracker,
 } from './utils/index.js';
@@ -58,12 +60,18 @@ const displayBanner = () => {
 const checkPrerequisites = async (apiKey) => {
   logger.section('Checking Prerequisites');
 
-  // Check OpenAI API key
-  if (!apiKey) {
+  // c0mpute first; OpenAI is required only when C0MPUTE_DISABLED is set
+  if (!isC0mputeDisabled()) {
+    logger.success(
+      `c0mpute first${process.env.C0MPUTE_API_KEY ? '' : ' (no C0MPUTE_API_KEY: free tier, 10 calls a day)'}`
+    );
+    logger.info(apiKey ? 'OpenAI API key configured as fallback' : 'No OpenAI fallback key');
+  } else if (!apiKey) {
     logger.error('OpenAI API key is required');
     return false;
+  } else {
+    logger.success('OpenAI API key configured');
   }
-  logger.success('OpenAI API key configured');
 
   // Check Puppeteer installation
   logger.info('Checking Puppeteer installation...');
@@ -163,8 +171,8 @@ const build = async (config, apiKey) => {
   const envConfig = getEnvConfig();
   const mergedConfig = mergeConfig({ ...config, ...envConfig });
 
-  // Create OpenAI client
-  const client = createOpenAIClient(apiKey);
+  // OpenAI client: the fallback behind c0mpute (none without a key)
+  const client = apiKey ? createOpenAIClient(apiKey) : null;
 
   // Setup output directory - use outputDir/rootFolder structure
   const baseOutputDir = mergedConfig.outputDir || './dist';
@@ -310,9 +318,10 @@ const main = async () => {
   try {
     displayBanner();
 
-    // Get or prompt for OpenAI API key
+    // Get the OpenAI fallback key (prompted for only when c0mpute is off)
     logger.info(`Config directory: ${getConfigDir()}`);
-    const apiKey = await ensureOpenAIKey();
+    // c0mpute needs no key; prompt for OpenAI only when c0mpute is disabled
+    const apiKey = isC0mputeDisabled() ? await ensureOpenAIKey() : await getOpenAIKey();
 
     // Check prerequisites
     const prereqOk = await checkPrerequisites(apiKey);

@@ -1,10 +1,17 @@
 /**
- * Content generation module using OpenAI API
- * Handles AI-powered content generation with retry logic and error handling
+ * Content generation module: c0mpute first (see ./c0mpute.js), then the
+ * OpenAI API with retry logic when c0mpute fails and a client is set.
  */
 
 import OpenAI from 'openai';
 import { getSectionById } from '../config/sections.js';
+import { createC0mpute } from './c0mpute.js';
+
+/** Default whole-call c0mpute timeout for one chunk (30 min; up to 4000 tokens at a few tokens a second). */
+export const C0MPUTE_CHUNK_TIMEOUT_MS = 30 * 60_000;
+
+const SYSTEM_PROMPT =
+  'You are an expert content creator specializing in digital products, marketing copy, and professional documentation. Your output is always polished, professional, and ready for commercial use.';
 
 /**
  * Create an OpenAI client instance
@@ -66,8 +73,8 @@ For documentation: Use markdown formatting`;
 };
 
 /**
- * Generate content for a single chunk with retry logic
- * @param {OpenAI} client - OpenAI client instance
+ * Generate content for a single chunk: c0mpute first, then OpenAI with retry logic
+ * @param {OpenAI|null} client - OpenAI client instance (fallback; may be null when c0mpute is on)
  * @param {Object} options - Generation options
  * @param {string} options.model - Model name
  * @param {number} options.temperature - Generation temperature
@@ -78,7 +85,8 @@ For documentation: Use markdown formatting`;
  * @param {Object} options.branding - Branding configuration
  * @param {number} options.maxRetries - Maximum retry attempts
  * @param {number} options.retryDelay - Delay between retries in ms
- * @returns {Promise<{content: string, usage: {promptTokens: number, completionTokens: number, totalTokens: number}}>} Generated content with token usage
+ * @param {Object|null} [options.c0mpute] - c0mpute router; default from env, null skips c0mpute
+ * @returns {Promise<{content: string, provider?: string, usage: {promptTokens: number, completionTokens: number, totalTokens: number}}>} Generated content with token usage
  */
 export const generateChunk = async (client, options) => {
   const {
@@ -92,8 +100,43 @@ export const generateChunk = async (client, options) => {
     maxRetries = 3,
     retryDelay = 1000,
   } = options;
+  const c0mpute =
+    options.c0mpute === undefined
+      ? createC0mpute({ defaultTimeoutMs: C0MPUTE_CHUNK_TIMEOUT_MS })
+      : options.c0mpute;
 
   const prompt = buildPrompt(section, chunkIndex, totalChunks, branding);
+
+  if (c0mpute) {
+    try {
+      const r = await c0mpute.generateText({
+        system: SYSTEM_PROMPT,
+        user: prompt,
+        temperature,
+        maxTokens,
+        feature: `neon-builder:${section.id}`,
+      });
+      if (!r.text?.trim()) throw new Error('Empty response from c0mpute');
+      return {
+        content: r.text,
+        provider: r.provider,
+        usage: {
+          promptTokens: r.usage?.inputTokens || 0,
+          completionTokens: r.usage?.outputTokens || 0,
+          totalTokens: (r.usage?.inputTokens || 0) + (r.usage?.outputTokens || 0),
+        },
+      };
+    } catch (error) {
+      if (!client) {
+        throw new Error(`Failed to generate content on c0mpute: ${error.message}`);
+      }
+      console.warn(`c0mpute failed, falling back to OpenAI: ${error.message}`);
+    }
+  }
+
+  if (!client) {
+    throw new Error('OpenAI API key is required. Set OPENAI_API_KEY environment variable.');
+  }
 
   let lastError;
 
@@ -104,8 +147,7 @@ export const generateChunk = async (client, options) => {
         messages: [
           {
             role: 'system',
-            content:
-              'You are an expert content creator specializing in digital products, marketing copy, and professional documentation. Your output is always polished, professional, and ready for commercial use.',
+            content: SYSTEM_PROMPT,
           },
           {
             role: 'user',
@@ -129,7 +171,7 @@ export const generateChunk = async (client, options) => {
         totalTokens: completion.usage?.total_tokens || 0,
       };
 
-      return { content, usage };
+      return { content, provider: 'openai', usage };
     } catch (error) {
       lastError = error;
 
@@ -161,7 +203,7 @@ export const generateChunk = async (client, options) => {
 
 /**
  * Generate all chunks for a section
- * @param {OpenAI} client - OpenAI client instance
+ * @param {OpenAI|null} client - OpenAI client instance (fallback)
  * @param {Object} options - Generation options
  * @param {string} options.sectionId - Section ID
  * @param {number} options.numChunks - Number of chunks to generate
@@ -169,11 +211,21 @@ export const generateChunk = async (client, options) => {
  * @param {number} options.temperature - Generation temperature
  * @param {Object} options.branding - Branding configuration
  * @param {Function} options.onProgress - Progress callback (chunkIndex, content, usage)
+ * @param {Object|null} [options.c0mpute] - c0mpute router; default from env, null skips c0mpute
  * @returns {Promise<{chunks: string[], totalUsage: {promptTokens: number, completionTokens: number, totalTokens: number}}>} Array of generated content chunks with total usage
  */
 export const generateSection = async (client, options) => {
-  const { sectionId, numChunks, model, temperature, branding, onProgress, maxRetries, retryDelay } =
-    options;
+  const {
+    sectionId,
+    numChunks,
+    model,
+    temperature,
+    branding,
+    onProgress,
+    maxRetries,
+    retryDelay,
+    c0mpute,
+  } = options;
 
   const section = getSectionById(sectionId);
 
@@ -198,6 +250,7 @@ export const generateSection = async (client, options) => {
       branding,
       maxRetries,
       retryDelay,
+      c0mpute,
     });
 
     chunks.push(content);
